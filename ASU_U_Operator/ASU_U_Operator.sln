@@ -7,6 +7,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ASU_U_Operator", "ASU_U_Ope
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WorkerBase", "WorkerBase\WorkerBase.csproj", "{DB2B2CD8-2212-4A5B-8CAC-08C7905243F6}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TestPlugin1", "TestPlugin1\TestPlugin1.csproj", "{73FC3A90-1F24-4E37-80E2-F649B085C4F7}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{DB2B2CD8-2212-4A5B-8CAC-08C7905243F6}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{DB2B2CD8-2212-4A5B-8CAC-08C7905243F6}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{DB2B2CD8-2212-4A5B-8CAC-08C7905243F6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{73FC3A90-1F24-4E37-80E2-F649B085C4F7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{73FC3A90-1F24-4E37-80E2-F649B085C4F7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{73FC3A90-1F24-4E37-80E2-F649B085C4F7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{73FC3A90-1F24-4E37-80E2-F649B085C4F7}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

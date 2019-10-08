@@ -7,6 +7,8 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Configuration;
 using ASU_U_Operator.Model;
 using Microsoft.EntityFrameworkCore;
+using ASU_U_Operator.Configuration;
+using ASU_U_Operator.Services;
 
 namespace ASU_U_Operator
 {
@@ -20,10 +22,17 @@ namespace ASU_U_Operator
                  {
                      builder.AddJsonFile("appsettings.json");                     
                  })
-                .ConfigureServices((hBuilder,sc) => {                    
-                    sc.AddLogging(conf => conf.AddConsole());                    
+                .ConfigureServices((hBuilder,sc) => {
+                    sc.AddScoped<IPreparedAppConfig, PreparedAppConfig>();
+                    sc.AddLogging(conf => {
+                        conf.AddFilter("ASU_U_Operator", LogLevel.Debug);
+
+                        conf.AddConsole();
+                    });                    
                     sc.AddDbContext<OperatorDbContext>(opt => opt.UseSqlServer(hBuilder.Configuration["operator:connectionString:operatorDb"]));
                     sc.AddScoped<ICoreInitializer, CoreInitializer>();
+                    sc.AddScoped<IWorkerService, WorkerService>();
+                    sc.AddScoped<IHealthcheck, Healthcheck>();
                     sc.AddHostedService<CoreHost>();
                 }).Build();
 

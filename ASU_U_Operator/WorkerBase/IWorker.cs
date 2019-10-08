@@ -11,19 +11,15 @@ namespace WorkerBase
          string Name { get; }
          string Description { get;  }
         
-         string Version { get;  }
-        
-         bool ThrowIfInitError { get;  }
-        
-         bool ThrowIfHealthcheckError { get; }
-        
-         int? ShutdownTimeoutMs { get;  }
+         string Version { get;  }       
+ 
 
-        bool Init();
+        Task<bool>  Init();
 
         Task Start();
 
         Task Stop();
 
+        Task<bool> Healthcheck();
     }
 }

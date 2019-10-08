@@ -19,13 +19,12 @@ namespace ASU_U_Operator.Model
 
         public string Path { get; set; }
 
-        public DateTime LastInitDate { get; set; }
+        public DateTime? LastLoadDate { get; set; }
+        public DateTime? LastInitDate { get; set; }
 
-        public bool ThrowIfInitError { get; set; }
+        public bool Loaded { get; set; }
 
-        public bool ThrowIfHealthcheckError { get; set; }
-
-        public int ShutdownTimeoutMs { get; set; }
+        public bool Init { get; set; }
 
     }
 }

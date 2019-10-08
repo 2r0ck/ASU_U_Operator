@@ -5,6 +5,6 @@ namespace ASU_U_Operator.Core
 {
     public interface ICoreInitializer
     {
-        IEnumerable<IWorker>  Init();
+        IEnumerable<IWorker> LoadAll();
     }
 }
