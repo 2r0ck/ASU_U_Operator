@@ -26,7 +26,7 @@ namespace ASU_U_Operator.Core
         private readonly IOperatorShell _shell;
         private IEnumerable<IWorker> plugins;
         private CancellationToken mainStoppingToken;
-        private readonly ConcurrentDictionary<Guid, CancellationTokenSource> cancelContexts;
+        private CancellationTokenSource shellStoppingTokenSource;
 
         public CoreHost(IServiceProvider serviceProvider,
             IHostApplicationLifetime appLifetime,
@@ -51,10 +51,6 @@ namespace ASU_U_Operator.Core
             appLifetime.ApplicationStopped.Register(OnStopped);
 
             _healthcheck.Error += _healthcheck_Error;
-            cancelContexts = new ConcurrentDictionary<Guid, CancellationTokenSource>();
-
-            _shell.StartPlugin += _shell_StartPlugin;
-            _shell.StopPlugin += _shell_StopPlugin;
         }
 
         private ShellTaskCallback _shell_StopPlugin(Guid arg)
@@ -72,16 +68,22 @@ namespace ASU_U_Operator.Core
             _logger.LogError(exception.ToString());
             //перезапускаем плагин  
             _logger.LogInformation("Restart plugin...");
-            StopPlugin(worker);
+            _coreInitializer.StopPlugin(worker);
             ClearMemory(); //очищаем все объекты оставшиеся после плагина
 
             Thread.Sleep(_appConfig.Operator.sys.restartPluginTimeoutMs??5000);
 
-            SafeRunPlugin(worker, mainStoppingToken);
+            _coreInitializer.RunPlugin(worker, mainStoppingToken);
         }
 
         private void OnStopping()
         {
+            //stop shell
+            if (!shellStoppingTokenSource.IsCancellationRequested)
+            {
+                shellStoppingTokenSource.Cancel();
+                shellStoppingTokenSource.Dispose();
+            }
             _logger.LogInformation("Stoping plugins..");
 
             if (plugins != null)
@@ -89,7 +91,7 @@ namespace ASU_U_Operator.Core
                 bool success = true;
                 foreach (var plugin in plugins)
                 {
-                    success &= StopPlugin(plugin);
+                    success &= _coreInitializer.StopPlugin(plugin);
                 }
                 if (!success)
                 {
@@ -136,10 +138,11 @@ namespace ASU_U_Operator.Core
 
                 foreach (var plugin in plugins)
                 {
-                    SafeRunPlugin(plugin, stoppingToken);
+                    _coreInitializer.RunPlugin(plugin, stoppingToken);
                 }
 
-                await _shell.Run(stoppingToken);
+                shellStoppingTokenSource = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
+                await _shell.Run(shellStoppingTokenSource.Token);
             }
             catch (Exception ex)
             {
@@ -147,113 +150,7 @@ namespace ASU_U_Operator.Core
             }
         }
 
-        private void SafeRunPlugin(IWorker plugin, CancellationToken stoppingToken)
-        {
-            //У HostedService нет unhandledException, поэтому не получается организовать единый узел обработки 
-
-            try
-            {
-                PreparePlugin(plugin);
-                StartPlugin(plugin, stoppingToken);
-            }catch(Exception ex)
-            {
-                _logger.LogError(ex.ToString());
-                _logger.LogError($"Plugin {plugin.Info()} not loaded.");
-            }
-        }
-
-        private void StartPlugin(IWorker plugin, CancellationToken stoppingToken)
-        {
-            if (cancelContexts.ContainsKey(plugin.Key))
-            {
-                FatalExit(new Exception($"CancelContexts: key already exist! Plugin {plugin.Info()}"));
-                return;
-            }
-
-            var cts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
-            if (cancelContexts.TryAdd(plugin.Key, cts))
-            {
-                plugin.Start(cts.Token);
-            }
-        }
-
-        private void PreparePlugin(IWorker plugin)
-        {
-            var throwIfInitError = _appConfig.Operator.sys.throwIfInitError ?? false;
-            var init = InitPlugin(plugin);
-            if (!init.IsCompletedSuccessfully)
-            {
-                Exception ex = init.Exception ?? new Exception($"plugin {plugin.Info()} initialize with errors");
-                _logger.LogError(ex.ToString());
-                if (throwIfInitError)
-                {
-                    throw ex;
-                }
-            }
-            else
-            {
-                _workerService.MarkInit(plugin.Key, true);
-                _logger.LogInformation($"plugin {plugin.Info()} successfully initialize.");
-                //после инициализации плагин должен положительно отвечать на healthcheck
-                if (_appConfig.Operator.sys.enableHealthcheck ?? false)
-                {
-                    //healthcheck
-                    _healthcheck.RunNew(plugin);
-                }
-            }
-        }
-
-        private Task InitPlugin(IWorker plugin)
-        {
-            _logger.LogInformation($"Init plugin {plugin.Name}({plugin.Key})");
-            var timeout = _appConfig.Operator.sys.pluginShutdownTimeoutMs ?? 5000;
-
-            var init = plugin.Init();
-
-            if (Task.WhenAny(init, Task.Delay(timeout)).Result != init)
-            {
-                Task.FromException(new Exception($"Init plugin timeout expired! Plugin: {plugin.Info()}"));
-            }
-            return init;
-        }
-
-        private bool StopPlugin(IWorker plugin)
-        {
-            try
-            {
-                _logger.LogInformation($"Stop plugin {plugin.Info()}");
-
-                var timeout = _appConfig.Operator.sys.pluginShutdownTimeoutMs ?? 5000;
-
-                _healthcheck.Stop(plugin.Key);
-
-                CancellationTokenSource cts;
-                if (cancelContexts.TryRemove(plugin.Key, out cts))
-                {
-                    cts.Cancel();
-                    cts.Dispose();
-                }
-
-                var stop = plugin.Stop();
-                if (Task.WhenAny(stop, Task.Delay(timeout)).Result != stop)
-                {
-                    throw new Exception($"Stoping timeout expired! Plugin: {plugin.Info()}");
-                }
-
-                _workerService.MarkInit(plugin.Key, false);
-
-                if (stop.Exception != null)
-                {
-                    throw stop.Exception;
-                }
-                return true;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex.ToString());
-                return false;
-            }
-        }
+    
 
         private  object lockClearMemory = new object();
 

@@ -10,8 +10,6 @@ namespace ASU_U_Operator.Shell
     {
         Task Run(CancellationToken stoppingToken);
 
-        event Func<Guid, ShellTaskCallback> StartPlugin;
-
-        event Func<Guid, ShellTaskCallback> StopPlugin; 
+       
 }
 }
