@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 using WorkerBase;
 
@@ -17,16 +18,24 @@ namespace TestPlugin1
 
         private bool load = false;
 
-        public Task<bool> Healthcheck() => Task.FromResult(this.load);
+        private Guid CurrnetGuid;
 
-      
+        //упадет после 5 сек после инициализации
+        public Task<bool> Healthcheck() { return Task.FromResult((DateTime.Now - initTime).Seconds < 5); }
 
-        public async Task Start()
+        private DateTime initTime;
+
+        public async Task Start(CancellationToken stoppingToken)
         {
             await Task.Run(() =>
            {
                //todo: test exception
-               Console.WriteLine($"Plugin :{Name}, action Start");
+               while (true)
+               {
+                   Console.WriteLine($"*****Plugin :{Name}, action Start*****{CurrnetGuid}");
+                   Thread.Sleep(1000);
+                   stoppingToken.ThrowIfCancellationRequested();
+               }               
            });
         }
 
@@ -35,6 +44,7 @@ namespace TestPlugin1
             await Task.Run(() =>
             {
                 load = false;
+              
                 Console.WriteLine($"Plugin :{Name}, action Stop");
             });
         }
@@ -43,6 +53,8 @@ namespace TestPlugin1
         {
             Console.WriteLine($"Plugin :{Name}, action Init");
             load = true;
+            initTime = DateTime.Now;
+            CurrnetGuid = Guid.NewGuid();
             return Task.FromResult(true);           
         }
     }

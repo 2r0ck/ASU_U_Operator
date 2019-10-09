@@ -3,6 +3,7 @@ using ASU_U_Operator.Services;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -22,6 +23,8 @@ namespace ASU_U_Operator.Core
         private readonly IWorkerService _workerService;
         private readonly IHealthcheck _healthcheck;
         private IEnumerable<IWorker> plugins;
+        private CancellationToken mainStoppingToken;
+        private readonly ConcurrentDictionary<Guid, CancellationTokenSource> cancelContexts;
 
         public CoreHost(IServiceProvider serviceProvider,
             IHostApplicationLifetime appLifetime,
@@ -44,17 +47,20 @@ namespace ASU_U_Operator.Core
             appLifetime.ApplicationStopped.Register(OnStopped);
 
             _healthcheck.Error += _healthcheck_Error;
+            cancelContexts = new ConcurrentDictionary<Guid, CancellationTokenSource>();
         }
 
         private void _healthcheck_Error(IWorker worker, Exception exception)
         {
             _logger.LogError(exception.ToString());
             //перезапускаем плагин если ошибка - загружать снова не требуется
-
+            _logger.LogInformation("Restart plugin...");
             StopPlugin(worker);
+            ClearMemory(); //очищаем все объекты оставшиеся после плагина
 
-            //todo restart
-            
+            Thread.Sleep(_appConfig.Operator.sys.restartPluginTimeoutMs??5000);
+            PreparePlugin(worker);
+            StartPlugin(worker, mainStoppingToken);
         }
 
         private void OnStopping()
@@ -98,6 +104,7 @@ namespace ASU_U_Operator.Core
         {
             try
             {
+                mainStoppingToken = stoppingToken;
                 if (!_appConfig.Validate())
                 {
                     throw new ApplicationException("Config file has errors");
@@ -112,10 +119,12 @@ namespace ASU_U_Operator.Core
 
                 foreach (var plugin in plugins)
                 {
-                    PreparePlugin( plugin);
+                    PreparePlugin(plugin);
+                    StartPlugin(plugin, stoppingToken);
                 }
 
-                await Task.WhenAll(plugins.Select(x => x.Start()).ToList());
+                //await Task.WhenAll(plugins.Select(x => x.Start()).ToList());
+                await Task.CompletedTask;
             }
             catch (Exception ex)
             {
@@ -123,13 +132,28 @@ namespace ASU_U_Operator.Core
             }
         }
 
-        private void PreparePlugin( IWorker plugin)
+        private void StartPlugin(IWorker plugin, CancellationToken stoppingToken)
+        {
+            if (cancelContexts.ContainsKey(plugin.Key))
+            {
+                FatalExit(new Exception($"CancelContexts: key already exist! Plugin {plugin.Info()}"));
+                return;
+            }
+
+            var cts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
+            if (cancelContexts.TryAdd(plugin.Key, cts))
+            {
+                plugin.Start(cts.Token);
+            }
+        }
+
+        private void PreparePlugin(IWorker plugin)
         {
             var throwIfInitError = _appConfig.Operator.sys.throwIfInitError ?? false;
             var init = InitPlugin(plugin);
             if (!init.IsCompletedSuccessfully)
             {
-                Exception ex = init.Exception ?? new Exception($"plugin [{plugin.Name}({plugin.Key})] initialize with errors");
+                Exception ex = init.Exception ?? new Exception($"plugin {plugin.Info()} initialize with errors");
                 _logger.LogError(ex.ToString());
                 if (throwIfInitError)
                 {
@@ -139,7 +163,7 @@ namespace ASU_U_Operator.Core
             else
             {
                 _workerService.MarkInit(plugin.Key, true);
-                _logger.LogInformation($"plugin [{plugin.Name}({plugin.Key})] successfully initialize.");
+                _logger.LogInformation($"plugin {plugin.Info()} successfully initialize.");
                 //после инициализации плагин должен положительно отвечать на healthcheck
                 if (_appConfig.Operator.sys.enableHealthcheck ?? false)
                 {
@@ -158,26 +182,32 @@ namespace ASU_U_Operator.Core
 
             if (Task.WhenAny(init, Task.Delay(timeout)).Result != init)
             {
-                Task.FromException(new Exception($"Init plugin timeout expired! Plugin:[{plugin.Name}({plugin.Key})]"));
+                Task.FromException(new Exception($"Init plugin timeout expired! Plugin: {plugin.Info()}"));
             }
             return init;
         }
 
-        
         private bool StopPlugin(IWorker plugin)
         {
             try
             {
-                _logger.LogInformation($"Stop plugin {plugin.Name}({plugin.Key})");
+                _logger.LogInformation($"Stop plugin {plugin.Info()}");
 
                 var timeout = _appConfig.Operator.sys.pluginShutdownTimeoutMs ?? 5000;
 
                 _healthcheck.Stop(plugin.Key);
 
+                CancellationTokenSource cts;
+                if (cancelContexts.TryRemove(plugin.Key, out cts))
+                {
+                    cts.Cancel();
+                    cts.Dispose();
+                }
+
                 var stop = plugin.Stop();
                 if (Task.WhenAny(stop, Task.Delay(timeout)).Result != stop)
                 {
-                    throw new Exception($"Stoping timeout expired! Plugin:[{plugin.Name}({plugin.Key})]");
+                    throw new Exception($"Stoping timeout expired! Plugin: {plugin.Info()}");
                 }
 
                 _workerService.MarkInit(plugin.Key, false);
@@ -192,6 +222,32 @@ namespace ASU_U_Operator.Core
             {
                 _logger.LogError(ex.ToString());
                 return false;
+            }
+        }
+
+        private  object lockClearMemory = new object();
+
+        public  void ClearMemory()
+        {
+            lock (lockClearMemory)
+            {
+                try
+                {                    
+                    _logger.LogInformation("(1) Total Memory: " + (GC.GetTotalMemory(false) / 1024 / 1024));
+                    //1
+                    GC.Collect();
+                    //2
+                    GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced);
+                    GC.WaitForPendingFinalizers();
+                    // Collect anything that's just been finalized
+                    GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced);
+
+                    _logger.LogInformation("(2) Total Memory: " + (GC.GetTotalMemory(false) / 1024 / 1024));
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex.ToString());
+                }
             }
         }
     }

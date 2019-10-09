@@ -32,7 +32,7 @@ namespace ASU_U_Operator.Services
             var token = csource.Token;
             if (tokens.ContainsKey(worker.Key))
             {
-                throw new Exception($"Worker key [{worker.Name}({worker.Key})] already exist in Healthcheck");
+                throw new Exception($"Worker key {worker.Info()} already exist in Healthcheck");
             }
 
             tokens.TryAdd(worker.Key, csource);
@@ -41,14 +41,17 @@ namespace ASU_U_Operator.Services
             {
                 try
                 {
-                    _logger.LogInformation($"Healthcheck: {worker.Name}({worker.Key}) start.");
+                    _logger.LogInformation($"Healthcheck: {worker.Info()} start.");
 
                     while (!token.IsCancellationRequested)
                     {
-                        _logger.LogDebug($"Healthcheck: {worker.Name}({worker.Key}) tick ({HealthcheckInterval})");
+                        _logger.LogDebug($"Healthcheck: {worker.Info()} tick ({HealthcheckInterval})");
 
                         var res = await worker.Healthcheck();
-
+                        if (!res)
+                        {
+                            throw new Exception($"Healthcheck return false. Plugin {worker.Info()}");
+                        }
                         Thread.Sleep(HealthcheckInterval);
                     }
                 }catch (Exception ex)
@@ -66,6 +69,7 @@ namespace ASU_U_Operator.Services
             if (tokens.TryRemove(key, out tokenSource))
             {
                 tokenSource.Cancel();
+                tokenSource.Dispose();
             }
         }
     }

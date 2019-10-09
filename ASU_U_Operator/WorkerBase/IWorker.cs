@@ -1,5 +1,6 @@
 ﻿
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace WorkerBase
@@ -16,7 +17,7 @@ namespace WorkerBase
 
         Task<bool>  Init();
 
-        Task Start();
+        Task Start(CancellationToken stoppingToken);
 
         Task Stop();
 

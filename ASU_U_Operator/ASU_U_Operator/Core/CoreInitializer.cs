@@ -35,7 +35,7 @@ namespace ASU_U_Operator.Core
             foreach (var plugin in plugins)
             {
                 _workerService.AddOrUpdate(plugin);
-                _log.LogInformation($"Load plugin [{plugin.Name}({plugin.Key})]..");
+                _log.LogInformation($"Load plugin {plugin.Info()}..");
             }
             return plugins;
         }

@@ -32,6 +32,8 @@ namespace ASU_U_Operator.Configuration
         public int? pluginShutdownTimeoutMs { get; set; }
         public bool? enableHealthcheck { get; set; }
         public int? healthcheckIntervalMs { get; set; }
+
+        public int? restartPluginTimeoutMs { get; set; }
     }
 
     public class ConnectionStringSection : CfgSectionBase
