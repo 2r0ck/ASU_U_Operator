@@ -12,12 +12,20 @@ namespace ASU_U_Operator.Configuration
         public SysSection sys { get; set; }
         [Required]
         public ConnectionStringSection connectionString { get; set; }
+
+        public ShellSection shell { get; set; }
+
         public PluginSection[] plugins { get; set; }
 
         public override bool Validate()
         {
-            return ValidateChild(sys) && ValidateChild(connectionString) && base.Validate();
+            return ValidateChild(shell) &&  ValidateChild(sys) && ValidateChild(connectionString) && base.Validate();
         }
+       
+    }
+    public class ShellSection : CfgSectionBase
+    {
+         public int? tickTimeoutMs { get; set; }
     }
 
     public class SysSection : CfgSectionBase

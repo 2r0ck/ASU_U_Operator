@@ -51,6 +51,11 @@ namespace TestPlugin1
 
         public Task<bool> Init()
         {
+            //if((DateTime.Now - initTime).Seconds < 15)
+            //{
+            //    throw new Exception("TestInitException");
+            //}
+
             Console.WriteLine($"Plugin :{Name}, action Init");
             load = true;
             initTime = DateTime.Now;

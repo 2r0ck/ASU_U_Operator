@@ -1,5 +1,6 @@
 ﻿using ASU_U_Operator.Configuration;
 using ASU_U_Operator.Services;
+using ASU_U_Operator.Shell;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System;
@@ -22,6 +23,7 @@ namespace ASU_U_Operator.Core
         private readonly IPreparedAppConfig _appConfig;
         private readonly IWorkerService _workerService;
         private readonly IHealthcheck _healthcheck;
+        private readonly IOperatorShell _shell;
         private IEnumerable<IWorker> plugins;
         private CancellationToken mainStoppingToken;
         private readonly ConcurrentDictionary<Guid, CancellationTokenSource> cancelContexts;
@@ -32,14 +34,16 @@ namespace ASU_U_Operator.Core
             ICoreInitializer coreInitializer,
             IPreparedAppConfig appConfig,
             IWorkerService workerService,
-            IHealthcheck healthcheck)
+            IHealthcheck healthcheck,
+            IOperatorShell shell)
         {
             _appLifetime = appLifetime ?? throw new InvalidProgramException("AppLifetime not defined");
             _logger = logger ?? throw new InvalidProgramException("AppLifetime not defined");
             _coreInitializer = coreInitializer ?? throw new InvalidProgramException("CoreInitializer not defined");
             _appConfig = appConfig ?? throw new InvalidProgramException("CoreInitializer not defined");
             _workerService = workerService ?? throw new InvalidProgramException("WorkerService not defined");
-            _healthcheck = healthcheck;
+            _healthcheck = healthcheck ?? throw new InvalidProgramException("Healthcheck not defined"); 
+            _shell = shell ?? throw new InvalidProgramException("OperatorShell not defined"); 
             _serviceProvider = serviceProvider ?? throw new InvalidProgramException("ServiceProvider not defined");
             //SIG handlers
             appLifetime.ApplicationStarted.Register(OnStarted);
@@ -48,19 +52,32 @@ namespace ASU_U_Operator.Core
 
             _healthcheck.Error += _healthcheck_Error;
             cancelContexts = new ConcurrentDictionary<Guid, CancellationTokenSource>();
+
+            _shell.StartPlugin += _shell_StartPlugin;
+            _shell.StopPlugin += _shell_StopPlugin;
+        }
+
+        private ShellTaskCallback _shell_StopPlugin(Guid arg)
+        {
+            throw new NotImplementedException();
+        }
+
+        private ShellTaskCallback _shell_StartPlugin(Guid arg)
+        {
+            throw new NotImplementedException();
         }
 
         private void _healthcheck_Error(IWorker worker, Exception exception)
         {
             _logger.LogError(exception.ToString());
-            //перезапускаем плагин если ошибка - загружать снова не требуется
+            //перезапускаем плагин  
             _logger.LogInformation("Restart plugin...");
             StopPlugin(worker);
             ClearMemory(); //очищаем все объекты оставшиеся после плагина
 
             Thread.Sleep(_appConfig.Operator.sys.restartPluginTimeoutMs??5000);
-            PreparePlugin(worker);
-            StartPlugin(worker, mainStoppingToken);
+
+            SafeRunPlugin(worker, mainStoppingToken);
         }
 
         private void OnStopping()
@@ -119,16 +136,29 @@ namespace ASU_U_Operator.Core
 
                 foreach (var plugin in plugins)
                 {
-                    PreparePlugin(plugin);
-                    StartPlugin(plugin, stoppingToken);
+                    SafeRunPlugin(plugin, stoppingToken);
                 }
 
-                //await Task.WhenAll(plugins.Select(x => x.Start()).ToList());
-                await Task.CompletedTask;
+                await _shell.Run(stoppingToken);
             }
             catch (Exception ex)
             {
                 FatalExit(ex);
+            }
+        }
+
+        private void SafeRunPlugin(IWorker plugin, CancellationToken stoppingToken)
+        {
+            //У HostedService нет unhandledException, поэтому не получается организовать единый узел обработки 
+
+            try
+            {
+                PreparePlugin(plugin);
+                StartPlugin(plugin, stoppingToken);
+            }catch(Exception ex)
+            {
+                _logger.LogError(ex.ToString());
+                _logger.LogError($"Plugin {plugin.Info()} not loaded.");
             }
         }
 

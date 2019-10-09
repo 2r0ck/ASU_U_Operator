@@ -9,6 +9,8 @@ using ASU_U_Operator.Model;
 using Microsoft.EntityFrameworkCore;
 using ASU_U_Operator.Configuration;
 using ASU_U_Operator.Services;
+using ASU_U_Operator.Shell.DataBase;
+using ASU_U_Operator.Shell;
 
 namespace ASU_U_Operator
 {
@@ -33,7 +35,9 @@ namespace ASU_U_Operator
                     sc.AddScoped<ICoreInitializer, CoreInitializer>();
                     sc.AddScoped<IWorkerService, WorkerService>();
                     sc.AddScoped<IHealthcheck, Healthcheck>();
+                    sc.AddScoped<IOperatorShell, DataBaseShell>();
                     sc.AddHostedService<CoreHost>();
+                    
                 }).Build();
 
             await host.RunAsync();
