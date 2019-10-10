@@ -6,7 +6,7 @@ using WorkerBase;
 
 namespace TestPlugin1
 {
-    public class Worker : IWorker
+    public class Worker : IPluginWorker
     {
         public Guid Key => Guid.Parse("6354780B-0E8C-4C39-A727-02A97D6E956C");
 
@@ -16,7 +16,7 @@ namespace TestPlugin1
 
         public string Version => Assembly.GetEntryAssembly().GetName().Version.ToString();
 
-        private bool load = false;
+        
 
         private Guid CurrnetGuid;
 
@@ -43,7 +43,6 @@ namespace TestPlugin1
         {
             await Task.Run(() =>
             {
-                load = false;
               
                 Console.WriteLine($"Plugin :{Name}, action Stop");
             });
@@ -57,7 +56,6 @@ namespace TestPlugin1
             //}
 
             Console.WriteLine($"Plugin :{Name}, action Init");
-            load = true;
             initTime = DateTime.Now;
             CurrnetGuid = Guid.NewGuid();
             return Task.FromResult(true);           

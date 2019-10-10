@@ -22,18 +22,19 @@ namespace ASU_U_Operator.Shell.DataBase
 
      
 
-        public Task Run(CancellationToken stoppingToken)
-        {
-            
+        public Task RunShell(CancellationToken stoppingToken)
+        {            
             //todo: обеспечить отказоустойчивось
             //в отдельной таблице держи все плагины подключенные вручную
             try
             {
                 _logger.LogInformation("Starting DataBaseShell");
+                var tickMs = _config.Operator.shell.tickTimeoutMs ?? 5000;
+
                 while (true)
                 {
 
-                    var tickMs = _config.Operator.shell.tickTimeoutMs ?? 5000;
+                    
                     Thread.Sleep(tickMs);
                     stoppingToken.ThrowIfCancellationRequested();
                 }

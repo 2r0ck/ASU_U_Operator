@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 
 namespace WorkerBase
 {
-    public interface IWorker
+    public interface IPluginWorker
     {       
          Guid Key { get; }
         

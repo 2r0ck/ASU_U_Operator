@@ -1,5 +1,4 @@
 ﻿using ASU_U_Operator.Configuration;
-using ASU_U_Operator.Model;
 using ASU_U_Operator.Services;
 using Microsoft.Extensions.Logging;
 using System;
@@ -21,7 +20,7 @@ namespace ASU_U_Operator.Core
         private readonly IWorkerService _workerService;
         private readonly IHealthcheck _healthcheck;
         private readonly ConcurrentDictionary<Guid, CancellationTokenSource> cancelContexts;
-
+        private IEnumerable<IPluginWorker> plugins;
 
         public CoreInitializer(IPreparedAppConfig appConfig,
             ILogger<CoreInitializer> log,
@@ -31,30 +30,29 @@ namespace ASU_U_Operator.Core
         {
             _appConfig = appConfig;
             _log = log;
-            
+
             cancelContexts = new ConcurrentDictionary<Guid, CancellationTokenSource>();
             _workerService = workerService ?? throw new InvalidProgramException("WorkerService not defined");
             _healthcheck = healthcheck ?? throw new InvalidProgramException("Healthcheck not defined");
         }
 
-        public IEnumerable<IWorker> LoadAll()
+        public IEnumerable<Guid> LoadAll()
         {
             _workerService.ResetAll();
 
-            var plugins = Load();
-          
+            plugins = LoadFromConfig();
+
             foreach (var plugin in plugins)
             {
                 _workerService.AddOrUpdate(plugin);
                 _log.LogInformation($"Load plugin {plugin.Info()}..");
             }
-            return plugins;
+            return plugins?.Select(x => x.Key);
         }
 
-        private IEnumerable<IWorker> Load()
+        private IEnumerable<IPluginWorker> LoadFromConfig()
         {
-
-            List<IWorker> pluginsLibs = new List<IWorker>();
+            List<IPluginWorker> pluginsLibs = new List<IPluginWorker>();
 
             var pluginsOptions = _appConfig.Operator.plugins;
 
@@ -96,15 +94,15 @@ namespace ASU_U_Operator.Core
             return Assembly.LoadFrom(relativePath);
         }
 
-        private IEnumerable<IWorker> CreateWorkers(Assembly assembly)
+        private IEnumerable<IPluginWorker> CreateWorkers(Assembly assembly)
         {
             int count = 0;
 
             foreach (Type type in assembly.GetTypes())
             {
-                if (typeof(IWorker).IsAssignableFrom(type))
+                if (typeof(IPluginWorker).IsAssignableFrom(type))
                 {
-                    IWorker result = Activator.CreateInstance(type) as IWorker;
+                    IPluginWorker result = Activator.CreateInstance(type) as IPluginWorker;
                     if (result != null)
                     {
                         count++;
@@ -122,24 +120,34 @@ namespace ASU_U_Operator.Core
             }
         }
 
-
-        public void RunPlugin(IWorker plugin, CancellationToken stoppingToken)
+        public bool RunPlugin(Guid pluginKey, CancellationToken stoppingToken)
         {
-            //У HostedService нет unhandledException, поэтому не получается организовать единый узел обработки 
-
+            //У HostedService нет unhandledException, поэтому не получается организовать единый узел обработки
+            IPluginWorker plugin = null;
             try
             {
+                _log.LogInformation($"Run plugin [{pluginKey}]..");
+                plugin = plugins.FirstOrDefault(x => x.Key == pluginKey);
+
+                if (plugin == null)
+                {
+                    _log.LogWarning($"Plugin [{pluginKey}] not loaded");
+                    return false;
+                }
+
                 PreparePlugin(plugin);
                 StartPlugin(plugin, stoppingToken);
+                return true;
             }
             catch (Exception ex)
             {
                 _log.LogError(ex.ToString());
-                _log.LogError($"Plugin {plugin.Info()} not run.");
+                _log.LogError("Plugin {0} not run.", plugin == null ? pluginKey.ToString() : plugin.Info());
+                return false;
             }
         }
 
-        private void StartPlugin(IWorker plugin, CancellationToken stoppingToken)
+        private void StartPlugin(IPluginWorker plugin, CancellationToken stoppingToken)
         {
             if (cancelContexts.ContainsKey(plugin.Key))
             {
@@ -153,7 +161,7 @@ namespace ASU_U_Operator.Core
             }
         }
 
-        private void PreparePlugin(IWorker plugin)
+        private void PreparePlugin(IPluginWorker plugin)
         {
             var throwIfInitError = _appConfig.Operator.sys.throwIfInitError ?? false;
             var init = InitPlugin(plugin);
@@ -179,7 +187,7 @@ namespace ASU_U_Operator.Core
             }
         }
 
-        private Task InitPlugin(IWorker plugin)
+        private Task InitPlugin(IPluginWorker plugin)
         {
             _log.LogInformation($"Init plugin {plugin.Name}({plugin.Key})");
             var timeout = _appConfig.Operator.sys.pluginShutdownTimeoutMs ?? 5000;
@@ -193,11 +201,20 @@ namespace ASU_U_Operator.Core
             return init;
         }
 
-        public bool StopPlugin(IWorker plugin)
+        public bool StopPlugin(Guid pluginKey)
         {
+            _log.LogInformation($"Stopping plugin {pluginKey}");
+
+            IPluginWorker plugin = null;
             try
             {
-                _log.LogInformation($"Stop plugin {plugin.Info()}");
+                plugin = plugins.FirstOrDefault(x => x.Key == pluginKey);
+                if (plugin == null)
+                {
+                    _log.LogWarning($"Plugin [{pluginKey}] not loaded");
+                    return false;
+                }          
+               
 
                 var timeout = _appConfig.Operator.sys.pluginShutdownTimeoutMs ?? 5000;
 

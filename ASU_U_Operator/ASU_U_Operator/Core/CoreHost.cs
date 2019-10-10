@@ -24,9 +24,13 @@ namespace ASU_U_Operator.Core
         private readonly IWorkerService _workerService;
         private readonly IHealthcheck _healthcheck;
         private readonly IOperatorShell _shell;
-        private IEnumerable<IWorker> plugins;
+        
         private CancellationToken mainStoppingToken;
         private CancellationTokenSource shellStoppingTokenSource;
+        
+        private object lockClearMemory = new object();
+        private IEnumerable<Guid> pluginsKeys;
+
 
         public CoreHost(IServiceProvider serviceProvider,
             IHostApplicationLifetime appLifetime,
@@ -45,6 +49,7 @@ namespace ASU_U_Operator.Core
             _healthcheck = healthcheck ?? throw new InvalidProgramException("Healthcheck not defined"); 
             _shell = shell ?? throw new InvalidProgramException("OperatorShell not defined"); 
             _serviceProvider = serviceProvider ?? throw new InvalidProgramException("ServiceProvider not defined");
+
             //SIG handlers
             appLifetime.ApplicationStarted.Register(OnStarted);
             appLifetime.ApplicationStopping.Register(OnStopping);
@@ -52,28 +57,18 @@ namespace ASU_U_Operator.Core
 
             _healthcheck.Error += _healthcheck_Error;
         }
+           
 
-        private ShellTaskCallback _shell_StopPlugin(Guid arg)
-        {
-            throw new NotImplementedException();
-        }
-
-        private ShellTaskCallback _shell_StartPlugin(Guid arg)
-        {
-            throw new NotImplementedException();
-        }
-
-        private void _healthcheck_Error(IWorker worker, Exception exception)
+        private void _healthcheck_Error(IPluginWorker worker, Exception exception)
         {
             _logger.LogError(exception.ToString());
             //перезапускаем плагин  
             _logger.LogInformation("Restart plugin...");
-            _coreInitializer.StopPlugin(worker);
+            _coreInitializer.StopPlugin(worker.Key);
             ClearMemory(); //очищаем все объекты оставшиеся после плагина
 
             Thread.Sleep(_appConfig.Operator.sys.restartPluginTimeoutMs??5000);
-
-            _coreInitializer.RunPlugin(worker, mainStoppingToken);
+            _coreInitializer.RunPlugin(worker.Key, mainStoppingToken);
         }
 
         private void OnStopping()
@@ -84,14 +79,14 @@ namespace ASU_U_Operator.Core
                 shellStoppingTokenSource.Cancel();
                 shellStoppingTokenSource.Dispose();
             }
-            _logger.LogInformation("Stoping plugins..");
+            _logger.LogInformation("Stopping plugins..");
 
-            if (plugins != null)
+            if (pluginsKeys != null)
             {
                 bool success = true;
-                foreach (var plugin in plugins)
+                foreach (var pluginKey in pluginsKeys)
                 {
-                    success &= _coreInitializer.StopPlugin(plugin);
+                    success &= _coreInitializer.StopPlugin(pluginKey);
                 }
                 if (!success)
                 {
@@ -129,20 +124,20 @@ namespace ASU_U_Operator.Core
                     throw new ApplicationException("Config file has errors");
                 }
 
-                plugins = _coreInitializer.LoadAll();
+                pluginsKeys = _coreInitializer.LoadAll();
 
-                if (plugins == null || plugins.Count() == 0)
+                if (pluginsKeys==null || !pluginsKeys.Any())
                 {
                     throw new Exception($"plugins not found");
                 }
 
-                foreach (var plugin in plugins)
+                foreach (var pluginKey in pluginsKeys)
                 {
-                    _coreInitializer.RunPlugin(plugin, stoppingToken);
+                    _coreInitializer.RunPlugin(pluginKey, stoppingToken);
                 }
 
                 shellStoppingTokenSource = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
-                await _shell.Run(shellStoppingTokenSource.Token);
+                await _shell.RunShell(shellStoppingTokenSource.Token);
             }
             catch (Exception ex)
             {
@@ -152,7 +147,7 @@ namespace ASU_U_Operator.Core
 
     
 
-        private  object lockClearMemory = new object();
+        
 
         public  void ClearMemory()
         {

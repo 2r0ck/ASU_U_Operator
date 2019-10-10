@@ -6,9 +6,9 @@ namespace ASU_U_Operator.Services
 {
     public interface IHealthcheck
     {
-        void RunNew(IWorker worker);
+        void RunNew(IPluginWorker worker);
 
-        event Action<IWorker, Exception> Error;
+        event Action<IPluginWorker, Exception> Error;
 
         void Stop(Guid key);
     }

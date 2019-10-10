@@ -12,5 +12,9 @@ namespace ASU_U_Operator.Model
 
         }
         public DbSet<Worker> Workers { get; set; }
+
+        public DbSet<OperatorSheduler> Shedulers { get; set; }
+
+        
     }
 }

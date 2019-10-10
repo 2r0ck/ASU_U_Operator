@@ -8,7 +8,7 @@ namespace ASU_U_Operator.Shell
 {
     public interface IOperatorShell
     {
-        Task Run(CancellationToken stoppingToken);
+        Task RunShell(CancellationToken stoppingToken);
 
        
 }

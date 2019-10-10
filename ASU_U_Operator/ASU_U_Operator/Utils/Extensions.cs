@@ -8,7 +8,7 @@ namespace ASU_U_Operator
     public static class Extensions
     {
 
-        public static string Info(this IWorker worker)
+        public static string Info(this IPluginWorker worker)
         {
             if (worker == null)
             {

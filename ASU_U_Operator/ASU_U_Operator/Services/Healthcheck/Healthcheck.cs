@@ -17,7 +17,7 @@ namespace ASU_U_Operator.Services
 
         private readonly ConcurrentDictionary<Guid, CancellationTokenSource> tokens;
 
-        public event Action<IWorker, Exception> Error;
+        public event Action<IPluginWorker, Exception> Error;
 
         public Healthcheck(IPreparedAppConfig appConfig, ILogger<Healthcheck> logger)
         {
@@ -26,7 +26,7 @@ namespace ASU_U_Operator.Services
             tokens = new ConcurrentDictionary<Guid, CancellationTokenSource>();
         }
 
-        public void RunNew(IWorker worker)
+        public void RunNew(IPluginWorker worker)
         {
             CancellationTokenSource csource = new CancellationTokenSource();
             var token = csource.Token;
