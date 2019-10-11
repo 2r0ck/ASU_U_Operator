@@ -32,6 +32,7 @@ namespace ASU_U_Operator.Services
 
         public void AddOrUpdate(IPluginWorker plugin)
         {
+
             var dbPlugin = context.Workers.Where(x => x.Key == plugin.Key).FirstOrDefault();
             if (dbPlugin == null)
             {

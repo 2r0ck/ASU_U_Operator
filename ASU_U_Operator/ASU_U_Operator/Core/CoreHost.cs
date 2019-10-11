@@ -16,7 +16,6 @@ namespace ASU_U_Operator.Core
     internal class CoreHost : BackgroundService
     {
         private readonly IHostApplicationLifetime _appLifetime;
-        private readonly IServiceProvider _serviceProvider;
 
         private readonly ILogger<CoreHost> _logger;
         private readonly ICoreInitializer _coreInitializer;
@@ -32,7 +31,7 @@ namespace ASU_U_Operator.Core
         private IEnumerable<Guid> pluginsKeys;
 
 
-        public CoreHost(IServiceProvider serviceProvider,
+        public CoreHost( 
             IHostApplicationLifetime appLifetime,
             ILogger<CoreHost> logger,
             ICoreInitializer coreInitializer,
@@ -48,7 +47,6 @@ namespace ASU_U_Operator.Core
             _workerService = workerService ?? throw new InvalidProgramException("WorkerService not defined");
             _healthcheck = healthcheck ?? throw new InvalidProgramException("Healthcheck not defined"); 
             _shell = shell ?? throw new InvalidProgramException("OperatorShell not defined"); 
-            _serviceProvider = serviceProvider ?? throw new InvalidProgramException("ServiceProvider not defined");
 
             //SIG handlers
             appLifetime.ApplicationStarted.Register(OnStarted);

@@ -30,7 +30,7 @@ GO
 SET QUOTED_IDENTIFIER ON
 GO
 CREATE TABLE [shell].[Shedulers](
-	[Id] [int] NOT NULL,
+	[Id] [int] IDENTITY(1,1) NOT NULL,
 	[Command] [varchar](100) NOT NULL, 
 	[JsonData] [varchar](max)  NULL,
 	[ProcessingDate] [datetime]  NULL, 

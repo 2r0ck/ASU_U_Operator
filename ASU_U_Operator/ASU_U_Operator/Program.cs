@@ -11,6 +11,7 @@ using ASU_U_Operator.Configuration;
 using ASU_U_Operator.Services;
 using ASU_U_Operator.Shell.DataBase;
 using ASU_U_Operator.Shell;
+using ASU_U_Operator.Shell.Shedulers;
 
 namespace ASU_U_Operator
 {
@@ -31,11 +32,14 @@ namespace ASU_U_Operator
 
                         conf.AddConsole();
                     });                    
-                    sc.AddDbContext<OperatorDbContext>(opt => opt.UseSqlServer(hBuilder.Configuration["operator:connectionString:operatorDb"]));
+                    sc.AddDbContext<OperatorDbContext>(opt => opt.UseSqlServer(hBuilder.Configuration["operator:connectionString:operatorDb"]),ServiceLifetime.Transient);
                     sc.AddScoped<ICoreInitializer, CoreInitializer>();
                     sc.AddScoped<IWorkerService, WorkerService>();
+                    sc.AddScoped<IShedulerService, ShedulerService>();
                     sc.AddScoped<IHealthcheck, Healthcheck>();
                     sc.AddScoped<IOperatorShell, DataBaseShell>();
+                    sc.AddTransient<ISheduler, StartSheduler>();
+                    sc.AddTransient<ISheduler, StopSheduler>();
                     sc.AddHostedService<CoreHost>();
                     
                 }).Build();
