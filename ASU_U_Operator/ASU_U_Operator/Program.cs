@@ -42,6 +42,7 @@ namespace ASU_U_Operator
                     sc.AddScoped<IOperatorShell, DataBaseShell>();
                     sc.AddTransient<ISheduler, StartSheduler>();
                     sc.AddTransient<ISheduler, StopSheduler>();
+                    sc.AddTransient<ISheduler, AttachNewPluginSheduler>();
                     sc.AddHostedService<CoreHost>();
                     
                 }).Build();

@@ -72,7 +72,7 @@ namespace ASU_U_Operator.Shell.DataBase
 
                                 if (shellShedulers.ContainsKey(shed.Command?.ToLower() ?? ""))
                                 {                                    
-                                    var handler = shellShedulers[shed.Command];
+                                    var handler = shellShedulers[shed.Command?.ToLower() ?? ""];
                                     _shedulerService.MarkAs(shedulers, ShedulerStatus.Starting);
                                    var result =  handler.Go(shed.JsonData, stoppingToken);
                                     _shedulerService.MarkAs(shedulers, result.Status,result.Message);

@@ -20,7 +20,8 @@ namespace ASU_U_Operator.Core
         private readonly IWorkerService _workerService;
         private readonly IHealthcheck _healthcheck;
         private readonly ConcurrentDictionary<Guid, CancellationTokenSource> cancelContexts;
-        private IEnumerable<IPluginWorker> plugins;
+        private List<IPluginWorker> plugins;
+        private IEnumerable<Guid> pluginsGuid => plugins?.Select(x => x.Key);
 
         public CoreInitializer(IPreparedAppConfig appConfig,
             ILogger<CoreInitializer> log,
@@ -47,20 +48,56 @@ namespace ASU_U_Operator.Core
                 _workerService.AddOrUpdate(plugin);
                 _log.LogInformation($"Load plugin {plugin.Info()}..");
             }
-            return plugins?.Select(x => x.Key);
+            return pluginsGuid;
         }
 
-        private IEnumerable<IPluginWorker> LoadFromConfig()
+        public IEnumerable<Guid> AttachByNewOptions(OperatorSection operatorOptions)
         {
+            if (operatorOptions == null)
+            {
+                throw new Exception("Config settings is null");
+            }
+            var new_plugins = LoadFromConfig(operatorOptions);
+            //уже загруженные плагины пропускаем, потому что они могут работать, а те которые еще небыли в работе  - загружаем
+            for (int i = 0; i < new_plugins.Count; i++)
+            {
+                if (plugins.Any(x => x.Key == new_plugins[i].Key))
+                {
+                    new_plugins[i] = null;
+                }
+            }
+
+            List<Guid> pluginsKeys = new List<Guid>();
+
+            for (int i = 0; i < new_plugins.Count; i++)
+            {
+                if (new_plugins[i] != null)
+                {
+                    _workerService.AddOrUpdate(new_plugins[i]);
+                    plugins.Add(new_plugins[i]);
+                    _log.LogInformation($"Load plugin {new_plugins[i].Info()}..");
+                    pluginsKeys.Add(new_plugins[i].Key);
+                }
+            }
+            return pluginsKeys;
+        }
+
+        private List<IPluginWorker> LoadFromConfig(OperatorSection operatorOptions = null)
+        {
+            if (operatorOptions == null)
+            {
+                operatorOptions = _appConfig.Operator;
+            }
+
             List<IPluginWorker> pluginsLibs = new List<IPluginWorker>();
 
-            var pluginsOptions = _appConfig.Operator.plugins;
+            var pluginsOptions = operatorOptions.plugins;
 
             //https://docs.microsoft.com/ru-ru/dotnet/core/tutorials/creating-app-with-plugin-support
 
             if (pluginsOptions != null)
             {
-                var throwIfPluginNotFound = _appConfig.Operator.sys.throwIfPluginNotFound.HasValue ? _appConfig.Operator.sys.throwIfPluginNotFound.Value : true;
+                var throwIfPluginNotFound = operatorOptions.sys.throwIfPluginNotFound.HasValue ? operatorOptions.sys.throwIfPluginNotFound.Value : true;
                 foreach (var plg in pluginsOptions)
                 {
                     try
@@ -73,7 +110,7 @@ namespace ASU_U_Operator.Core
                         }
                         else
                         {
-                            throw new Exception($"Plugin [{plg.key}] not found. throwIfPluginNotFound={throwIfPluginNotFound}");
+                            throw new Exception($"Plugin [{plg.header}] not found. throwIfPluginNotFound={throwIfPluginNotFound}");
                         }
                     }
                     catch (Exception ex)
@@ -128,15 +165,12 @@ namespace ASU_U_Operator.Core
             {
                 _log.LogInformation($"Run plugin [{pluginKey}]..");
 
-             
-
                 plugin = plugins.FirstOrDefault(x => x.Key == pluginKey);
 
                 if (cancelContexts.ContainsKey(pluginKey))
                 {
                     throw new Exception($"Plugin already run! Plugin {plugin.Info()}");
                 }
-
 
                 if (plugin == null)
                 {

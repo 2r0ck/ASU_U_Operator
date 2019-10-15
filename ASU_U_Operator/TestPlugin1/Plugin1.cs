@@ -8,11 +8,14 @@ namespace TestPlugin1
 {
     public class Worker : IPluginWorker
     {
-        public Guid Key => Guid.Parse("6354780B-0E8C-4C39-A727-02A97D6E956C");
+        /// <summary>
+        /// Если версия меняется, то необходимо переписать гуид
+        /// </summary>
+        public Guid Key => Guid.Parse("7596F79F-07D6-4026-9C29-F9701C7BA108" );
 
         public string Name => "Worker1";
 
-        public string Description => "test plugin";
+        public string Description => "test plugin1";
 
         public string Version => Assembly.GetEntryAssembly().GetName().Version.ToString();
 

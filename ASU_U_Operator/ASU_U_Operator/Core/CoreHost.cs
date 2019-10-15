@@ -4,7 +4,6 @@ using ASU_U_Operator.Shell;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -23,15 +22,14 @@ namespace ASU_U_Operator.Core
         private readonly IWorkerService _workerService;
         private readonly IHealthcheck _healthcheck;
         private readonly IOperatorShell _shell;
-        
+
         private CancellationToken mainStoppingToken;
         private CancellationTokenSource shellStoppingTokenSource;
-        
+
         private object lockClearMemory = new object();
         private IEnumerable<Guid> pluginsKeys;
 
-
-        public CoreHost( 
+        public CoreHost(
             IHostApplicationLifetime appLifetime,
             ILogger<CoreHost> logger,
             ICoreInitializer coreInitializer,
@@ -45,27 +43,25 @@ namespace ASU_U_Operator.Core
             _coreInitializer = coreInitializer ?? throw new InvalidProgramException("CoreInitializer not defined");
             _appConfig = appConfig ?? throw new InvalidProgramException("CoreInitializer not defined");
             _workerService = workerService ?? throw new InvalidProgramException("WorkerService not defined");
-            _healthcheck = healthcheck ?? throw new InvalidProgramException("Healthcheck not defined"); 
-            _shell = shell ?? throw new InvalidProgramException("OperatorShell not defined"); 
+            _healthcheck = healthcheck ?? throw new InvalidProgramException("Healthcheck not defined");
+            _shell = shell ?? throw new InvalidProgramException("OperatorShell not defined");
 
             //SIG handlers
-            appLifetime.ApplicationStarted.Register(OnStarted);
             appLifetime.ApplicationStopping.Register(OnStopping);
             appLifetime.ApplicationStopped.Register(OnStopped);
 
             _healthcheck.Error += _healthcheck_Error;
         }
-           
 
         private void _healthcheck_Error(IPluginWorker worker, Exception exception)
         {
             _logger.LogError(exception.ToString());
-            //перезапускаем плагин  
+            //перезапускаем плагин
             _logger.LogInformation("Restart plugin...");
             _coreInitializer.StopPlugin(worker.Key);
             ClearMemory(); //очищаем все объекты оставшиеся после плагина
 
-            Thread.Sleep(_appConfig.Operator.sys.restartPluginTimeoutMs??5000);
+            Thread.Sleep(_appConfig.Operator.sys.restartPluginTimeoutMs ?? 5000);
             _coreInitializer.RunPlugin(worker.Key, mainStoppingToken);
         }
 
@@ -99,11 +95,7 @@ namespace ASU_U_Operator.Core
             _logger.LogInformation("Core stopped.");
         }
 
-        private void OnStarted()
-        {
-            _logger.LogInformation("All plugin started.");
-        }
-
+      
         protected void FatalExit(Exception ex)
         {
             _logger.LogError(ex.ToString());
@@ -116,6 +108,8 @@ namespace ASU_U_Operator.Core
         {
             try
             {
+                _logger.LogInformation("Core host exec..");
+
                 mainStoppingToken = stoppingToken;
                 if (!_appConfig.Validate())
                 {
@@ -124,7 +118,7 @@ namespace ASU_U_Operator.Core
 
                 pluginsKeys = _coreInitializer.LoadAll();
 
-                if (pluginsKeys==null || !pluginsKeys.Any())
+                if (pluginsKeys == null || !pluginsKeys.Any())
                 {
                     throw new Exception($"plugins not found");
                 }
@@ -143,16 +137,12 @@ namespace ASU_U_Operator.Core
             }
         }
 
-    
-
-        
-
-        public  void ClearMemory()
+        public void ClearMemory()
         {
             lock (lockClearMemory)
             {
                 try
-                {                    
+                {
                     _logger.LogDebug("(1) Total Memory: " + (GC.GetTotalMemory(false) / 1024 / 1024));
                     //1
                     GC.Collect();

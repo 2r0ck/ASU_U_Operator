@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netcoreapp2.2</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\WorkerBase\WorkerBase.csproj" />
+  </ItemGroup>
+
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <Exec Command="set operatorDir=&quot;$(SolutionDir)ASU_U_Operator\bin\Debug\netcoreapp2.2\plugins&quot;&#xD;&#xA;echo %operatorDir%&#xD;&#xA;if not exist %operatorDir% mkdir %operatorDir%&#xD;&#xA;COPY /Y $(TargetPath)  %operatorDir%" />
+  </Target>
+
+</Project>

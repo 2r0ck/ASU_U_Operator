@@ -50,9 +50,8 @@ namespace ASU_U_Operator.Configuration
 
     public class PluginSection : CfgSectionBase
     {
-        public string key { get; set; }
+        public string header { get; set; }
         public string path { get; set; }
-        public string worker { get; set; }
     }
 
 

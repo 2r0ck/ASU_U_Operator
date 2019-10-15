@@ -13,16 +13,16 @@ namespace ASU_U_Operator.Shell.Shedulers
     public class StopSheduler : ShedulerBase<ShedulerExecData>
     {
         private readonly ICoreInitializer _coreInitializer;
-        private readonly ILogger<StartSheduler> logger;
+        private readonly ILogger<StopSheduler> logger;
 
         public override string Command => "stop";
 
         public override string Desc => "stop : Stop plugin by GUID. \n JSON Data Sample: {\"key\":\"6354780B-0E8C-4C39-A727-02A97D6E956C\"}";
 
-        public StopSheduler(ICoreInitializer coreInitializer,   ILogger<StartSheduler> log)
+        public StopSheduler(ICoreInitializer coreInitializer,   ILogger<StopSheduler> log)
         {
             _coreInitializer = coreInitializer ?? throw new InvalidProgramException("CoreInitializer not defined");
-            logger = log ?? throw new InvalidProgramException("Logger<StartSheduler> not defined");
+            logger = log ?? throw new InvalidProgramException("Logger<StopSheduler> not defined");
         }
         public override ShedulerEventArgs Go(string json, CancellationToken stoppingToken)
         {
