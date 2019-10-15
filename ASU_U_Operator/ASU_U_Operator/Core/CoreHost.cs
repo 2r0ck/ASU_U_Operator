@@ -153,7 +153,7 @@ namespace ASU_U_Operator.Core
             {
                 try
                 {                    
-                    _logger.LogInformation("(1) Total Memory: " + (GC.GetTotalMemory(false) / 1024 / 1024));
+                    _logger.LogDebug("(1) Total Memory: " + (GC.GetTotalMemory(false) / 1024 / 1024));
                     //1
                     GC.Collect();
                     //2
@@ -162,7 +162,7 @@ namespace ASU_U_Operator.Core
                     // Collect anything that's just been finalized
                     GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced);
 
-                    _logger.LogInformation("(2) Total Memory: " + (GC.GetTotalMemory(false) / 1024 / 1024));
+                    _logger.LogDebug("(2) Total Memory: " + (GC.GetTotalMemory(false) / 1024 / 1024));
                 }
                 catch (Exception ex)
                 {

@@ -9,9 +9,8 @@ namespace ASU_U_Operator.Configuration
     public class OperatorSection :CfgSectionBase
     {
         [Required]
-        public SysSection sys { get; set; }
-        [Required]
-        public ConnectionStringSection connectionString { get; set; }
+        public SysSection sys { get; set; }       
+     
 
         public ShellSection shell { get; set; }
 
@@ -19,7 +18,7 @@ namespace ASU_U_Operator.Configuration
 
         public override bool Validate()
         {
-            return ValidateChild(shell) &&  ValidateChild(sys) && ValidateChild(connectionString) && base.Validate();
+            return ValidateChild(shell) &&  ValidateChild(sys)  && base.Validate();
         }
        
     }

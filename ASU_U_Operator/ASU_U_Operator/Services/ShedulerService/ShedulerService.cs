@@ -1,4 +1,5 @@
 ﻿using ASU_U_Operator.Model;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -16,16 +17,21 @@ namespace ASU_U_Operator.Services
         }
         public IEnumerable<OperatorSheduler> GetNew()
         {
-            return context.Shedulers.Where(x => x.Status == null).ToList();                        
+            return context.Shedulers.Where(x => x.Status == null).AsNoTracking().ToList();                        
         }
 
         public  IEnumerable<OperatorSheduler> MarkAs(IEnumerable<OperatorSheduler> shedulers, ShedulerStatus status,string info = null)
         {
             var ids = shedulers.Select(x => x.Id).ToList();
             var now = DateTime.Now;
+           
             var db_shedulers = context.Shedulers.Where(x => ids.Contains(x.Id));
+          
             foreach (var shed in db_shedulers)
             {
+                //disable cache
+                context.Entry(shed).Reload();
+
                 if (status == ShedulerStatus.Processing)
                 {
                     shed.ProcessingDate = now;

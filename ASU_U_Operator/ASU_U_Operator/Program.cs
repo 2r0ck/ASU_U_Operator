@@ -29,10 +29,12 @@ namespace ASU_U_Operator
                     sc.AddScoped<IPreparedAppConfig, PreparedAppConfig>();
                     sc.AddLogging(conf => {
                         conf.AddFilter("ASU_U_Operator", LogLevel.Debug);
+                        conf.AddFilter("Microsoft.EntityFrameworkCore.Database.Command", LogLevel.Warning);
 
                         conf.AddConsole();
+                        conf.AddLog4Net();
                     });                    
-                    sc.AddDbContext<OperatorDbContext>(opt => opt.UseSqlServer(hBuilder.Configuration["operator:connectionString:operatorDb"]),ServiceLifetime.Transient);
+                    sc.AddDbContext<OperatorDbContext>(opt => opt.UseSqlServer(hBuilder.Configuration.GetConnectionString("operatorDb")),ServiceLifetime.Transient);
                     sc.AddScoped<ICoreInitializer, CoreInitializer>();
                     sc.AddScoped<IWorkerService, WorkerService>();
                     sc.AddScoped<IShedulerService, ShedulerService>();

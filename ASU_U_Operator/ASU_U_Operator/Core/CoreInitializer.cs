@@ -127,7 +127,16 @@ namespace ASU_U_Operator.Core
             try
             {
                 _log.LogInformation($"Run plugin [{pluginKey}]..");
+
+             
+
                 plugin = plugins.FirstOrDefault(x => x.Key == pluginKey);
+
+                if (cancelContexts.ContainsKey(pluginKey))
+                {
+                    throw new Exception($"Plugin already run! Plugin {plugin.Info()}");
+                }
+
 
                 if (plugin == null)
                 {
@@ -213,8 +222,12 @@ namespace ASU_U_Operator.Core
                 {
                     _log.LogWarning($"Plugin [{pluginKey}] not loaded");
                     return false;
-                }          
-               
+                }
+
+                if (!cancelContexts.ContainsKey(pluginKey))
+                {
+                    throw new Exception($"Plugin not run! Plugin {plugin.Info()}");
+                }
 
                 var timeout = _appConfig.Operator.sys.pluginShutdownTimeoutMs ?? 5000;
 
