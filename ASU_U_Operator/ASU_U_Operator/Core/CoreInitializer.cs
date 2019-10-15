@@ -94,7 +94,7 @@ namespace ASU_U_Operator.Core
             var pluginsOptions = operatorOptions.plugins;
 
             //https://docs.microsoft.com/ru-ru/dotnet/core/tutorials/creating-app-with-plugin-support
-
+            var rootPath = AppDomain.CurrentDomain.BaseDirectory;
             if (pluginsOptions != null)
             {
                 var throwIfPluginNotFound = operatorOptions.sys.throwIfPluginNotFound.HasValue ? operatorOptions.sys.throwIfPluginNotFound.Value : true;
@@ -102,7 +102,8 @@ namespace ASU_U_Operator.Core
                 {
                     try
                     {
-                        if (File.Exists(plg.path))
+                        var pluginPath = Path.Combine(rootPath, plg.path);
+                        if (File.Exists(pluginPath))
                         {
                             Assembly pluginAssembly = LoadPlugin(plg.path);
                             var ws = CreateWorkers(pluginAssembly);
@@ -110,7 +111,7 @@ namespace ASU_U_Operator.Core
                         }
                         else
                         {
-                            throw new Exception($"Plugin [{plg.header}] not found. throwIfPluginNotFound={throwIfPluginNotFound}");
+                            throw new Exception($"Plugin [{plg.header}] not found. throwIfPluginNotFound={throwIfPluginNotFound}.PluginPath={pluginPath} ");
                         }
                     }
                     catch (Exception ex)
