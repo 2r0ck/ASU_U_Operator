@@ -105,7 +105,7 @@ namespace ASU_U_Operator.Core
                         var pluginPath = Path.Combine(rootPath, plg.path);
                         if (File.Exists(pluginPath))
                         {
-                            Assembly pluginAssembly = LoadPlugin(plg.path);
+                            Assembly pluginAssembly = LoadPlugin(pluginPath);
                             var ws = CreateWorkers(pluginAssembly);
                             pluginsLibs.AddRange(ws);
                         }
