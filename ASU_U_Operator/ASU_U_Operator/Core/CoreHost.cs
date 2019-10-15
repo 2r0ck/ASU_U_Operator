@@ -68,7 +68,7 @@ namespace ASU_U_Operator.Core
         private void OnStopping()
         {
             //stop shell
-            if (!shellStoppingTokenSource.IsCancellationRequested)
+            if (shellStoppingTokenSource!=null && !shellStoppingTokenSource.IsCancellationRequested)
             {
                 shellStoppingTokenSource.Cancel();
                 shellStoppingTokenSource.Dispose();
